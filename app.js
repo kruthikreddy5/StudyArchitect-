@@ -1,10 +1,12 @@
 // --- CONFIGURATION ---
-// Replace placeholders with your actual keys or let GitHub Actions handle them
+// IMPORTANT: If testing locally, replace these with your actual keys!
+// If deploying to GitHub, keep these placeholders for the GitHub Action.
 const SUPABASE_URL = "___SUPABASE_URL___"; 
 const SUPABASE_KEY = "___SUPABASE_KEY___";
 const GEMINI_API_KEY = "___GEMINI_API_KEY___";
 
-const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+// FIXED: Changed variable name to 'supabaseClient' to avoid conflict
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // --- AI ENGINE ---
 async function sendMessage(overridePrompt = null) {
@@ -13,6 +15,10 @@ async function sendMessage(overridePrompt = null) {
     const prompt = overridePrompt || inputField.value;
 
     if (!prompt) return;
+    if (GEMINI_API_KEY.includes("___")) {
+        chatOutput.innerHTML += `<p style="color:red"><b>Error:</b> API Key not set. Paste your key in app.js for local testing!</p>`;
+        return;
+    }
 
     chatOutput.innerHTML += `<p><b>You:</b> ${prompt}</p>`;
     inputField.value = "";
@@ -32,12 +38,12 @@ async function sendMessage(overridePrompt = null) {
         chatOutput.innerHTML += `<p><b>AI:</b> ${aiText}</p>`;
         chatOutput.scrollTop = chatOutput.scrollHeight;
 
-        // AUTO-TASKING LOGIC
         if (aiText.includes("TASKS:")) {
             parseTasks(aiText);
         }
     } catch (error) {
-        chatOutput.innerHTML += `<p style="color:red">Error connecting to the brain.</p>`;
+        console.error(error);
+        chatOutput.innerHTML += `<p style="color:red">Error connecting to the brain. Check Console (F12).</p>`;
     }
 }
 
@@ -47,7 +53,7 @@ async function parseTasks(text) {
     if (taskMatch) {
         const tasks = taskMatch[1].split(',');
         for (let t of tasks) {
-            await supabase.from('tasks').insert([
+            await supabaseClient.from('tasks').insert([
                 { user_id: 'Kruthik', task: t.trim(), is_completed: false }
             ]);
         }
@@ -57,27 +63,41 @@ async function parseTasks(text) {
 
 // --- SUPABASE TASK HANDLER ---
 async function loadTasks() {
-    const { data, error } = await supabase
+    if (SUPABASE_KEY.includes("___")) {
+        document.getElementById('task-list').innerText = "Supabase keys missing. Connect to see tasks.";
+        return;
+    }
+
+    const { data, error } = await supabaseClient
         .from('tasks')
         .select('*')
         .eq('user_id', 'Kruthik')
         .order('id', { ascending: false });
 
+    if (error) {
+        console.error("Supabase Error:", error);
+        return;
+    }
+
     const taskList = document.getElementById('task-list');
-    taskList.innerHTML = data.map(t => `
-        <div class="task-item">
-            <input type="checkbox" ${t.is_completed ? 'checked' : ''} onchange="toggleTask(${t.id}, ${t.is_completed})">
-            <span>${t.task}</span>
-        </div>
-    `).join('');
+    if (!data || data.length === 0) {
+        taskList.innerHTML = "No missions assigned yet.";
+    } else {
+        taskList.innerHTML = data.map(t => `
+            <div class="task-item">
+                <input type="checkbox" ${t.is_completed ? 'checked' : ''} onchange="toggleTask(${t.id}, ${t.is_completed})">
+                <span>${t.task}</span>
+            </div>
+        `).join('');
+    }
 }
 
 async function toggleTask(id, currentStatus) {
-    await supabase.from('tasks').update({ is_completed: !currentStatus }).eq('id', id);
+    await supabaseClient.from('tasks').update({ is_completed: !currentStatus }).eq('id', id);
     loadTasks();
 }
 
-// --- POMODORO TIMER ---
+// --- POMODORO TIMER (This should work regardless of keys) ---
 let timerInterval;
 let timeLeft = 25 * 60;
 let isRunning = false;
@@ -124,7 +144,7 @@ function panicMode() {
 
 // --- EXAM COUNTDOWN ---
 function updateCountdown() {
-    const examDate = new Date('2027-04-01'); // Update this date
+    const examDate = new Date('2027-04-01'); 
     const now = new Date();
     const diff = examDate - now;
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
@@ -132,5 +152,7 @@ function updateCountdown() {
 }
 
 // Initialize
-loadTasks();
-updateCountdown();
+window.onload = () => {
+    loadTasks();
+    updateCountdown();
+};
