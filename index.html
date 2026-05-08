@@ -3,98 +3,73 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Architect | Grade 12</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <title>Architect | 12</title>
     <style>
         :root {
-            --bg-color: #fdfaf5; /* Creamish White */
-            --text-color: #333;
+            --bg: #fdfaf5; /* Creamish White */
             --accent: #3498db;
-            --dot-color: #e5e0d8;
+            --dots: rgba(0, 0, 0, 0.05);
         }
 
         body {
-            margin: 0;
-            padding: 20px;
-            background-color: var(--bg-color);
-            /* Minimal Dotted Pattern */
-            background-image: radial-gradient(var(--dot-color) 1px, transparent 1px);
-            background-size: 20px 20px;
+            margin: 0; padding: 20px;
+            background-color: var(--bg);
+            background-image: radial-gradient(var(--dots) 1px, transparent 1px);
+            background-size: 24px 24px;
             font-family: 'Courier New', monospace;
-            color: var(--text-color);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
+            display: flex; flex-direction: column; align-items: center;
         }
 
-        .container {
-            width: 100%;
-            max-width: 500px;
-            margin-top: 5vh;
-        }
+        .container { width: 100%; max-width: 450px; margin-top: 8vh; }
 
-        h1 {
-            font-weight: normal;
-            font-size: 1.5rem;
-            letter-spacing: -1px;
+        /* The title you will double-tap */
+        h1 { 
+            font-weight: normal; font-size: 1.4rem; 
             text-decoration: underline wavy var(--accent);
-            margin-bottom: 30px;
+            cursor: pointer; user-select: none;
         }
 
-        .input-group {
-            background: rgba(255, 255, 255, 0.7);
-            padding: 20px;
-            border-radius: 15px;
-            border: 1px solid #eee;
-            backdrop-filter: blur(5px);
+        .card {
+            background: rgba(255, 255, 255, 0.6);
+            padding: 25px; border-radius: 20px;
+            border: 1px solid rgba(0,0,0,0.05);
+            backdrop-filter: blur(10px);
         }
 
         input {
-            width: 100%;
-            padding: 12px 0;
-            border: none;
-            border-bottom: 1px solid #ddd;
-            background: transparent;
-            margin-bottom: 20px;
-            font-family: inherit;
-            font-size: 1rem;
-            outline: none;
+            width: 100%; padding: 15px 0; border: none;
+            border-bottom: 1px solid #ddd; background: transparent;
+            margin-bottom: 15px; font-family: inherit; font-size: 1rem;
         }
 
         button {
-            width: 100%;
-            padding: 12px;
-            background: #222;
-            color: #fff;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: 0.3s;
+            width: 100%; padding: 15px; background: #111;
+            color: #fff; border: none; border-radius: 8px;
+            font-family: inherit; font-weight: bold; margin-top: 10px;
         }
 
-        button:hover { opacity: 0.8; }
-
-        #output {
-            margin-top: 30px;
-            font-size: 0.9rem;
-            line-height: 1.6;
-            white-space: pre-wrap;
-        }
-
-        .status { font-size: 0.7rem; color: #888; margin-top: 10px; }
+        #output { margin-top: 30px; font-size: 0.9rem; line-height: 1.7; color: #444; }
+        
+        /* Hidden by default */
+        #adminZone { display: none; margin-bottom: 20px; border: 1px dashed var(--accent); padding: 10px; border-radius: 10px; }
+        .status { font-size: 0.7rem; color: #999; margin-top: 10px; text-align: center; }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <h1>architect.v2</h1>
+        <h1 id="mainTitle">architect.v2</h1>
         
-        <div class="input-group">
-            <input type="password" id="geminiKey" placeholder="Gemini API Key">
-            <input type="text" id="userId" placeholder="Your Name/ID (e.g. Kruthik)">
-            <input type="text" id="userGoal" placeholder="Topic? (e.g. Integrals)">
+        <div id="adminZone">
+            <input type="password" id="secretKey" placeholder="Paste Gemini Key & it will stay saved">
+            <button onclick="saveKey()">Lock Key to Device</button>
+        </div>
+
+        <div class="card">
+            <input type="text" id="userId" placeholder="Student ID (e.g. Kruthik)">
+            <input type="text" id="userGoal" placeholder="Target Topic?">
             <button onclick="runAgent()">Consult Agent</button>
-            <div id="status" class="status">System Ready</div>
+            <div id="status" class="status">System Secure</div>
         </div>
 
         <div id="output"></div>
@@ -102,67 +77,68 @@
 
     <script type="module">
         import { GoogleGenerativeAI } from "https://esm.run/@google/generative-ai";
+        import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
 
-        // --- REPLACE THESE WITH YOUR SUPABASE DETAILS ---
-        const SB_URL = "https://teulkzvsqqzlghacouev.supabase.co/rest/v1/";
+        // --- SUPABASE CONFIG ---
+        const SB_URL = "https://teulkzvsqqzlghacouev.supabase.co/rest/v1/"; 
         const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRldWxrenZzcXF6bGdoYWNvdWV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyNTQ4MTEsImV4cCI6MjA5MzgzMDgxMX0.GREj_LBA18MbSLYoW3YvLabwGLRutrZKAq650FLRRfo";
-        const supabase = str_supabase.createClient(SB_URL, SB_KEY);
+        const supabase = createClient(SB_URL, SB_KEY);
 
+        // 1. Secret Handshake: Double tap title to show Admin
+        document.getElementById('mainTitle').addEventListener('dblclick', () => {
+            const zone = document.getElementById('adminZone');
+            zone.style.display = zone.style.display === 'block' ? 'none' : 'block';
+        });
+
+        // 2. Save Key to Local Storage
+        window.saveKey = () => {
+            const key = document.getElementById('secretKey').value;
+            if(key) {
+                localStorage.setItem('my_secret_gemini_key', key);
+                alert("Key locked to this device. You can now hide the input.");
+                document.getElementById('adminZone').style.display = 'none';
+            }
+        }
+
+        // 3. Main Agent Logic
         window.runAgent = async () => {
-            const key = document.getElementById('geminiKey').value;
+            const savedKey = localStorage.getItem('my_secret_gemini_key');
             const uid = document.getElementById('userId').value;
             const goal = document.getElementById('userGoal').value;
             const status = document.getElementById('status');
             const output = document.getElementById('output');
 
-            if (!key || !uid) return alert("Missing Key or ID");
-
-            status.innerText = "Syncing with cloud memory...";
-
-            // 1. Fetch memory from Supabase
-            const { data: memories } = await supabase
-                .from('memories')
-                .select('content, category')
-                .eq('user_id', uid);
-
-            const memoryContext = memories?.map(m => `[${m.category}]: ${m.content}`).join("\n") || "No history.";
-
-            status.innerText = "Consulting Gemini...";
+            if (!savedKey) return alert("System locked. Double-tap title to enter Key.");
+            if (!uid || !goal) return alert("Enter ID and Topic.");
 
             try {
-                const genAI = new GoogleGenerativeAI(key);
+                status.innerText = "⏳ Syncing Cloud Memory...";
+                const { data: memories } = await supabase.from('memories').select('content, category').eq('user_id', uid);
+                const memoryContext = memories?.map(m => `[${m.category}]: ${m.content}`).join("\n") || "No history.";
+
+                status.innerText = "🧠 Reasoning...";
+                const genAI = new GoogleGenerativeAI(savedKey);
                 const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-                const prompt = `
-                    User: ${uid} (Grade 12)
-                    History: ${memoryContext}
-                    Current Task: ${goal}
-                    
-                    Role: Expert Grade-12 Tutor. Provide a plan or explanation.
-                    Important: End your response with exactly three tags: 
-                    STRENGTH: (what they know)
-                    WEAKNESS: (what to fix)
-                    LESSON: (key takeaway)
-                `;
+                const prompt = `User: ${uid} (12th Grade). History: ${memoryContext}. Goal: ${goal}. 
+                Provide a high-performance study plan. End with STRENGTH:, WEAKNESS:, LESSON:.`;
 
                 const result = await model.generateContent(prompt);
                 const text = result.response.text();
                 output.innerText = text;
 
-                // 2. Parse tags and save back to Supabase
+                // Save new memory
                 const categories = ["STRENGTH", "WEAKNESS", "LESSON"];
                 for (const cat of categories) {
                     const match = text.match(new RegExp(`${cat}: (.*)`));
                     if (match) {
-                        await supabase.from('memories').insert([
-                            { user_id: uid, category: cat, content: match[1] }
-                        ]);
+                        await supabase.from('memories').insert([{ user_id: uid, category: cat, content: match[1] }]);
                     }
                 }
-                status.innerText = "Memory Synced.";
-
+                status.innerText = "✅ Memory Updated.";
             } catch (err) {
-                output.innerText = "Error: " + err.message;
+                status.innerText = "❌ Error.";
+                output.innerText = err.message;
             }
         };
     </script>
