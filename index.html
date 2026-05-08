@@ -2,145 +2,161 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Architect | 12</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Architect | Dashboard</title>
     <style>
-        :root {
-            --bg: #fdfaf5; /* Creamish White */
-            --accent: #3498db;
-            --dots: rgba(0, 0, 0, 0.05);
-        }
-
-        body {
-            margin: 0; padding: 20px;
-            background-color: var(--bg);
-            background-image: radial-gradient(var(--dots) 1px, transparent 1px);
-            background-size: 24px 24px;
-            font-family: 'Courier New', monospace;
-            display: flex; flex-direction: column; align-items: center;
-        }
-
-        .container { width: 100%; max-width: 450px; margin-top: 8vh; }
-
-        /* The title you will double-tap */
-        h1 { 
-            font-weight: normal; font-size: 1.4rem; 
-            text-decoration: underline wavy var(--accent);
-            cursor: pointer; user-select: none;
-        }
-
-        .card {
-            background: rgba(255, 255, 255, 0.6);
-            padding: 25px; border-radius: 20px;
-            border: 1px solid rgba(0,0,0,0.05);
-            backdrop-filter: blur(10px);
-        }
-
-        input {
-            width: 100%; padding: 15px 0; border: none;
-            border-bottom: 1px solid #ddd; background: transparent;
-            margin-bottom: 15px; font-family: inherit; font-size: 1rem;
-        }
-
-        button {
-            width: 100%; padding: 15px; background: #111;
-            color: #fff; border: none; border-radius: 8px;
-            font-family: inherit; font-weight: bold; margin-top: 10px;
-        }
-
-        #output { margin-top: 30px; font-size: 0.9rem; line-height: 1.7; color: #444; }
+        :root { --bg: #fdfaf5; --accent: #3498db; --dots: rgba(0, 0, 0, 0.05); --card-bg: rgba(255, 255, 255, 0.7); }
+        body { margin: 0; background: var(--bg); background-image: radial-gradient(var(--dots) 1px, transparent 1px); background-size: 24px 24px; font-family: 'Courier New', monospace; color: #333; }
         
-        /* Hidden by default */
-        #adminZone { display: none; margin-bottom: 20px; border: 1px dashed var(--accent); padding: 10px; border-radius: 10px; }
-        .status { font-size: 0.7rem; color: #999; margin-top: 10px; text-align: center; }
+        .dashboard { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; padding: 20px; max-width: 1200px; margin: auto; }
+        header { text-align: center; padding: 40px 20px; }
+        h1 { font-size: 1.5rem; text-decoration: underline wavy var(--accent); margin: 0; }
+        
+        .tile { background: var(--card-bg); padding: 20px; border-radius: 15px; border: 1px solid rgba(0,0,0,0.03); backdrop-filter: blur(10px); }
+        .tile h2 { font-size: 0.9rem; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 15px; color: #888; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+
+        /* Chat & Voice Area */
+        .chat-box { height: 200px; overflow-y: auto; font-size: 0.85rem; margin-bottom: 10px; border-bottom: 1px solid #eee; }
+        input, textarea { width: 100%; padding: 10px 0; border: none; border-bottom: 1px solid #ddd; background: transparent; font-family: inherit; outline: none; margin-bottom: 10px; }
+        .btn-row { display: flex; gap: 10px; }
+        button { flex: 1; padding: 10px; background: #111; color: white; border: none; border-radius: 5px; cursor: pointer; font-family: inherit; font-size: 0.8rem; }
+        button.voice-btn { background: var(--accent); }
+
+        /* Todo & Schedule Lists */
+        .list-item { font-size: 0.85rem; padding: 8px 0; border-bottom: 1px dashed #eee; display: flex; justify-content: space-between; }
+        .timer-display { font-size: 2rem; text-align: center; margin: 10px 0; font-weight: bold; }
     </style>
 </head>
 <body>
 
-    <div class="container">
-        <h1 id="mainTitle">architect.v2</h1>
-        
-        <div id="adminZone">
-            <input type="password" id="secretKey" placeholder="Paste Gemini Key & it will stay saved">
-            <button onclick="saveKey()">Lock Key to Device</button>
+    <header>
+        <h1>architect.dashboard</h1>
+        <p style="font-size: 0.7rem; color: #999;">Logged in: <span id="displayId">Kruthik</span></p>
+    </header>
+
+    <div class="dashboard">
+        <div class="tile">
+            <h2>AI Consultant</h2>
+            <div id="chatOutput" class="chat-box">Waiting for input...</div>
+            <textarea id="aiInput" placeholder="Ask about Chemistry or Schedule..."></textarea>
+            <div class="btn-row">
+                <button onclick="askAI()">Consult</button>
+                <button class="voice-btn" id="voiceBtn">🎤 Voice</button>
+            </div>
         </div>
 
-        <div class="card">
-            <input type="text" id="userId" placeholder="Student ID (e.g. Kruthik)">
-            <input type="text" id="userGoal" placeholder="Target Topic?">
-            <button onclick="runAgent()">Consult Agent</button>
-            <div id="status" class="status">System Secure</div>
+        <div class="tile">
+            <h2>Tasks & Roadmap</h2>
+            <div id="todoList"></div>
+            <input type="text" id="newTask" placeholder="+ Add a manual task">
+            <button onclick="addTask()">Add Task</button>
         </div>
 
-        <div id="output"></div>
+        <div class="tile">
+            <h2>Daily Schedule</h2>
+            <div id="scheduleContainer"></div>
+        </div>
+
+        <div class="tile">
+            <h2>Focus Timer</h2>
+            <div class="timer-display" id="timer">25:00</div>
+            <div class="btn-row">
+                <button onclick="toggleTimer()" id="timerBtn">Start</button>
+                <button onclick="resetTimer()">Reset</button>
+            </div>
+        </div>
     </div>
 
     <script type="module">
         import { GoogleGenerativeAI } from "https://esm.run/@google/generative-ai";
         import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
 
-        // --- SUPABASE CONFIG ---
-        const SB_URL = "https://teulkzvsqqzlghacouev.supabase.co/rest/v1/"; 
-        const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRldWxrenZzcXF6bGdoYWNvdWV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyNTQ4MTEsImV4cCI6MjA5MzgzMDgxMX0.GREj_LBA18MbSLYoW3YvLabwGLRutrZKAq650FLRRfo";
+        // Secrets injected by GitHub Actions
+        const savedKey = "___GEMINI_API_KEY___"; 
+        const SB_URL = "___SUPABASE_URL___"; 
+        const SB_KEY = "___SUPABASE_KEY___";
         const supabase = createClient(SB_URL, SB_KEY);
+        const userId = "Kruthik"; 
 
-        // 1. Secret Handshake: Double tap title to show Admin
-        document.getElementById('mainTitle').addEventListener('dblclick', () => {
-            const zone = document.getElementById('adminZone');
-            zone.style.display = zone.style.display === 'block' ? 'none' : 'block';
-        });
-
-        // 2. Save Key to Local Storage
-        window.saveKey = () => {
-            const key = document.getElementById('secretKey').value;
-            if(key) {
-                localStorage.setItem('my_secret_gemini_key', key);
-                alert("Key locked to this device. You can now hide the input.");
-                document.getElementById('adminZone').style.display = 'none';
-            }
+        // --- 1. VOICE RECOGNITION ---
+        const voiceBtn = document.getElementById('voiceBtn');
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (SpeechRecognition) {
+            const recognition = new SpeechRecognition();
+            voiceBtn.onclick = () => { recognition.start(); voiceBtn.innerText = "Listening..."; };
+            recognition.onresult = (event) => {
+                const text = event.results[0][0].transcript;
+                document.getElementById('aiInput').value = text;
+                voiceBtn.innerText = "🎤 Voice";
+            };
         }
 
-        // 3. Main Agent Logic
-        window.runAgent = async () => {
-            const savedKey = localStorage.getItem('my_secret_gemini_key');
-            const uid = document.getElementById('userId').value;
-            const goal = document.getElementById('userGoal').value;
-            const status = document.getElementById('status');
-            const output = document.getElementById('output');
+        // --- 2. AI & SCHEDULE LOGIC ---
+        window.askAI = async () => {
+            const input = document.getElementById('aiInput').value;
+            const chat = document.getElementById('chatOutput');
+            if (!input) return;
 
-            if (!savedKey) return alert("System locked. Double-tap title to enter Key.");
-            if (!uid || !goal) return alert("Enter ID and Topic.");
+            chat.innerText = "Consulting the architect...";
+            const genAI = new GoogleGenerativeAI(savedKey);
+            const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-            try {
-                status.innerText = "⏳ Syncing Cloud Memory...";
-                const { data: memories } = await supabase.from('memories').select('content, category').eq('user_id', uid);
-                const memoryContext = memories?.map(m => `[${m.category}]: ${m.content}`).join("\n") || "No history.";
+            const prompt = `User: ${userId}. Task: ${input}. 
+            Role: Expert Tutor. If user asks for a schedule or tasks, format them clearly. 
+            Always end with: 
+            TASKS: [task1, task2] 
+            SCHEDULE: [Time|Subject|Activity]`;
 
-                status.innerText = "🧠 Reasoning...";
-                const genAI = new GoogleGenerativeAI(savedKey);
-                const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+            const result = await model.generateContent(prompt);
+            const response = result.response.text();
+            chat.innerText = response;
 
-                const prompt = `User: ${uid} (12th Grade). History: ${memoryContext}. Goal: ${goal}. 
-                Provide a high-performance study plan. End with STRENGTH:, WEAKNESS:, LESSON:.`;
-
-                const result = await model.generateContent(prompt);
-                const text = result.response.text();
-                output.innerText = text;
-
-                // Save new memory
-                const categories = ["STRENGTH", "WEAKNESS", "LESSON"];
-                for (const cat of categories) {
-                    const match = text.match(new RegExp(`${cat}: (.*)`));
-                    if (match) {
-                        await supabase.from('memories').insert([{ user_id: uid, category: cat, content: match[1] }]);
-                    }
-                }
-                status.innerText = "✅ Memory Updated.";
-            } catch (err) {
-                status.innerText = "❌ Error.";
-                output.innerText = err.message;
+            // Sync Tasks to Supabase if AI suggests them
+            const taskMatch = response.match(/TASKS: \[(.*?)\]/);
+            if (taskMatch) {
+                const tasks = taskMatch[1].split(',');
+                for (let t of tasks) await supabase.from('tasks').insert([{ user_id: userId, task: t.trim() }]);
+                loadTasks();
             }
         };
+
+        // --- 3. DATA LOADING ---
+        async function loadTasks() {
+            const { data } = await supabase.from('tasks').select('*').eq('user_id', userId).order('created_at', { ascending: false });
+            document.getElementById('todoList').innerHTML = data.map(t => `<div class="list-item">${t.task} <span onclick="deleteTask(${t.id})">✕</span></div>`).join('');
+        }
+
+        window.addTask = async () => {
+            const val = document.getElementById('newTask').value;
+            if (val) {
+                await supabase.from('tasks').insert([{ user_id: userId, task: val }]);
+                document.getElementById('newTask').value = '';
+                loadTasks();
+            }
+        };
+
+        // --- 4. TIMER LOGIC ---
+        let timerSeconds = 1500;
+        let timerActive = false;
+        let interval;
+        window.toggleTimer = () => {
+            if (timerActive) {
+                clearInterval(interval);
+                document.getElementById('timerBtn').innerText = "Start";
+            } else {
+                interval = setInterval(() => {
+                    timerSeconds--;
+                    let mins = Math.floor(timerSeconds / 60);
+                    let secs = timerSeconds % 60;
+                    document.getElementById('timer').innerText = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+                    if (timerSeconds <= 0) clearInterval(interval);
+                }, 1000);
+                document.getElementById('timerBtn').innerText = "Pause";
+            }
+            timerActive = !timerActive;
+        };
+
+        loadTasks();
     </script>
 </body>
 </html>
