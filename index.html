@@ -1,61 +1,170 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Architect AI</title>
+    <title>Architect | Grade 12</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        :root { --blue: #3498db; --bg: #ffffff; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); padding: 15px; margin: 0; }
-        h1 { font-size: 24px; border-bottom: 2px wavy var(--blue); display: inline-block; margin-bottom: 10px; }
-        .card { background: #fdfdfd; border: 1px solid #eee; border-radius: 12px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.02); }
-        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
-        button { width: 100%; padding: 12px; background: #222; color: white; border: none; border-radius: 8px; font-weight: bold; font-size: 16px; }
-        #output { margin-top: 20px; font-size: 15px; line-height: 1.6; color: #444; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
-        th, td { border: 1px solid #eee; padding: 8px; text-align: left; }
+        :root {
+            --bg-color: #fdfaf5; /* Creamish White */
+            --text-color: #333;
+            --accent: #3498db;
+            --dot-color: #e5e0d8;
+        }
+
+        body {
+            margin: 0;
+            padding: 20px;
+            background-color: var(--bg-color);
+            /* Minimal Dotted Pattern */
+            background-image: radial-gradient(var(--dot-color) 1px, transparent 1px);
+            background-size: 20px 20px;
+            font-family: 'Courier New', monospace;
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 500px;
+            margin-top: 5vh;
+        }
+
+        h1 {
+            font-weight: normal;
+            font-size: 1.5rem;
+            letter-spacing: -1px;
+            text-decoration: underline wavy var(--accent);
+            margin-bottom: 30px;
+        }
+
+        .input-group {
+            background: rgba(255, 255, 255, 0.7);
+            padding: 20px;
+            border-radius: 15px;
+            border: 1px solid #eee;
+            backdrop-filter: blur(5px);
+        }
+
+        input {
+            width: 100%;
+            padding: 12px 0;
+            border: none;
+            border-bottom: 1px solid #ddd;
+            background: transparent;
+            margin-bottom: 20px;
+            font-family: inherit;
+            font-size: 1rem;
+            outline: none;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background: #222;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        button:hover { opacity: 0.8; }
+
+        #output {
+            margin-top: 30px;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            white-space: pre-wrap;
+        }
+
+        .status { font-size: 0.7rem; color: #888; margin-top: 10px; }
     </style>
 </head>
 <body>
 
-    <h1>Study Architect</h1>
-    <p style="font-size: 14px; color: #666;">Your 11th Grade JEE/EAMCET Partner.</p>
+    <div class="container">
+        <h1>architect.v2</h1>
+        
+        <div class="input-group">
+            <input type="password" id="geminiKey" placeholder="Gemini API Key">
+            <input type="text" id="userId" placeholder="Your Name/ID (e.g. Kruthik)">
+            <input type="text" id="userGoal" placeholder="Topic? (e.g. Integrals)">
+            <button onclick="runAgent()">Consult Agent</button>
+            <div id="status" class="status">System Ready</div>
+        </div>
 
-    <div class="card">
-        <input type="password" id="apiKey" placeholder="Paste Gemini API Key here">
-        <input type="text" id="userGoal" placeholder="e.g. Plan 2 days for Redox Reactions">
-        <button onclick="runAgent()">Build My Plan</button>
+        <div id="output"></div>
     </div>
-
-    <div id="output">Plan will appear here...</div>
 
     <script type="module">
         import { GoogleGenerativeAI } from "https://esm.run/@google/generative-ai";
 
+        // --- REPLACE THESE WITH YOUR SUPABASE DETAILS ---
+        const SB_URL = "YOUR_SUPABASE_URL";
+        const SB_KEY = "YOUR_SUPABASE_ANON_KEY";
+        const supabase = str_supabase.createClient(SB_URL, SB_KEY);
+
         window.runAgent = async () => {
-            const key = document.getElementById('apiKey').value;
+            const key = document.getElementById('geminiKey').value;
+            const uid = document.getElementById('userId').value;
             const goal = document.getElementById('userGoal').value;
+            const status = document.getElementById('status');
             const output = document.getElementById('output');
 
-            if(!key) return alert("Please paste your API key first!");
-            
-            output.innerHTML = "Architect is thinking...";
+            if (!key || !uid) return alert("Missing Key or ID");
+
+            status.innerText = "Syncing with cloud memory...";
+
+            // 1. Fetch memory from Supabase
+            const { data: memories } = await supabase
+                .from('memories')
+                .select('content, category')
+                .eq('user_id', uid);
+
+            const memoryContext = memories?.map(m => `[${m.category}]: ${m.content}`).join("\n") || "No history.";
+
+            status.innerText = "Consulting Gemini...";
 
             try {
                 const genAI = new GoogleGenerativeAI(key);
                 const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-                const prompt = `You are a high-performance Study Architect for a 17-year-old student in Hyderabad preparing for 11th Grade JEE/EAMCET. 
-                Goal: ${goal}
-                Context: Focus on high-weightage topics first. Be minimalist.
-                Output: Provide a clear, step-by-step table. Style: Hacker-minimalist.`;
+                const prompt = `
+                    User: ${uid} (Grade 12)
+                    History: ${memoryContext}
+                    Current Task: ${goal}
+                    
+                    Role: Expert Grade-12 Tutor. Provide a plan or explanation.
+                    Important: End your response with exactly three tags: 
+                    STRENGTH: (what they know)
+                    WEAKNESS: (what to fix)
+                    LESSON: (key takeaway)
+                `;
 
                 const result = await model.generateContent(prompt);
-                const response = await result.response;
-                output.innerText = response.text();
-            } catch (error) {
-                output.innerText = "Error: " + error.message;
+                const text = result.response.text();
+                output.innerText = text;
+
+                // 2. Parse tags and save back to Supabase
+                const categories = ["STRENGTH", "WEAKNESS", "LESSON"];
+                for (const cat of categories) {
+                    const match = text.match(new RegExp(`${cat}: (.*)`));
+                    if (match) {
+                        await supabase.from('memories').insert([
+                            { user_id: uid, category: cat, content: match[1] }
+                        ]);
+                    }
+                }
+                status.innerText = "Memory Synced.";
+
+            } catch (err) {
+                output.innerText = "Error: " + err.message;
             }
-        }
+        };
     </script>
 </body>
 </html>
