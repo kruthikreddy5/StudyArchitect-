@@ -3,160 +3,116 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Architect | Dashboard</title>
+    <title>Architect Arena</title>
     <style>
-        :root { --bg: #fdfaf5; --accent: #3498db; --dots: rgba(0, 0, 0, 0.05); --card-bg: rgba(255, 255, 255, 0.7); }
-        body { margin: 0; background: var(--bg); background-image: radial-gradient(var(--dots) 1px, transparent 1px); background-size: 24px 24px; font-family: 'Courier New', monospace; color: #333; }
-        
-        .dashboard { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; padding: 20px; max-width: 1200px; margin: auto; }
-        header { text-align: center; padding: 40px 20px; }
-        h1 { font-size: 1.5rem; text-decoration: underline wavy var(--accent); margin: 0; }
-        
-        .tile { background: var(--card-bg); padding: 20px; border-radius: 15px; border: 1px solid rgba(0,0,0,0.03); backdrop-filter: blur(10px); }
-        .tile h2 { font-size: 0.9rem; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 15px; color: #888; border-bottom: 1px solid #eee; padding-bottom: 5px; }
-
-        /* Chat & Voice Area */
-        .chat-box { height: 200px; overflow-y: auto; font-size: 0.85rem; margin-bottom: 10px; border-bottom: 1px solid #eee; }
-        input, textarea { width: 100%; padding: 10px 0; border: none; border-bottom: 1px solid #ddd; background: transparent; font-family: inherit; outline: none; margin-bottom: 10px; }
-        .btn-row { display: flex; gap: 10px; }
-        button { flex: 1; padding: 10px; background: #111; color: white; border: none; border-radius: 5px; cursor: pointer; font-family: inherit; font-size: 0.8rem; }
-        button.voice-btn { background: var(--accent); }
-
-        /* Todo & Schedule Lists */
-        .list-item { font-size: 0.85rem; padding: 8px 0; border-bottom: 1px dashed #eee; display: flex; justify-content: space-between; }
-        .timer-display { font-size: 2rem; text-align: center; margin: 10px 0; font-weight: bold; }
+        :root { --bg: #fdfaf5; --accent: #3498db; --dots: rgba(0, 0, 0, 0.05); }
+        body { margin: 0; background: var(--bg); background-image: radial-gradient(var(--dots) 1px, transparent 1px); background-size: 24px 24px; font-family: 'Courier New', monospace; padding: 20px; }
+        .tile { background: rgba(255, 255, 255, 0.7); padding: 20px; border-radius: 15px; border: 1px solid rgba(0,0,0,0.03); backdrop-filter: blur(10px); margin-bottom: 20px; }
+        h1 { font-size: 1.2rem; text-decoration: underline wavy var(--accent); text-align: center; margin-bottom: 30px; }
+        textarea, input { width: 100%; padding: 12px 0; border: none; border-bottom: 1px solid #ddd; background: transparent; font-family: inherit; margin-bottom: 10px; outline: none; }
+        button { width: 100%; padding: 15px; background: #111; color: white; border: none; border-radius: 8px; font-family: inherit; margin-bottom: 10px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+        #chatOutput { font-size: 0.85rem; color: #555; line-height: 1.6; margin-bottom: 15px; white-space: pre-wrap; }
+        .list-item { font-size: 0.85rem; padding: 10px 0; border-bottom: 1px dashed #eee; display: flex; justify-content: space-between; }
     </style>
 </head>
 <body>
 
-    <header>
-        <h1>architect.dashboard</h1>
-        <p style="font-size: 0.7rem; color: #999;">Logged in: <span id="displayId">Kruthik</span></p>
-    </header>
+    <h1>architect.arena</h1>
 
-    <div class="dashboard">
-        <div class="tile">
-            <h2>AI Consultant</h2>
-            <div id="chatOutput" class="chat-box">Waiting for input...</div>
-            <textarea id="aiInput" placeholder="Ask about Chemistry or Schedule..."></textarea>
-            <div class="btn-row">
-                <button onclick="askAI()">Consult</button>
-                <button class="voice-btn" id="voiceBtn">🎤 Voice</button>
-            </div>
-        </div>
+    <div class="tile">
+        <div id="chatOutput">Ready to consult...</div>
+        <textarea id="aiInput" placeholder="Describe your goal or tap Mic..."></textarea>
+        <button onclick="askAI()" id="consultBtn">Consult Agent</button>
+        <button onclick="startVoice()" style="background: var(--accent);" id="voiceBtn">🎤 Voice Input</button>
+    </div>
 
-        <div class="tile">
-            <h2>Tasks & Roadmap</h2>
-            <div id="todoList"></div>
-            <input type="text" id="newTask" placeholder="+ Add a manual task">
-            <button onclick="addTask()">Add Task</button>
-        </div>
-
-        <div class="tile">
-            <h2>Daily Schedule</h2>
-            <div id="scheduleContainer"></div>
-        </div>
-
-        <div class="tile">
-            <h2>Focus Timer</h2>
-            <div class="timer-display" id="timer">25:00</div>
-            <div class="btn-row">
-                <button onclick="toggleTimer()" id="timerBtn">Start</button>
-                <button onclick="resetTimer()">Reset</button>
-            </div>
-        </div>
+    <div class="tile">
+        <div id="todoList">Loading tasks...</div>
+        <input type="text" id="newTask" placeholder="+ Add manual task">
+        <button onclick="addTask()">Add Task</button>
     </div>
 
     <script type="module">
         import { GoogleGenerativeAI } from "https://esm.run/@google/generative-ai";
         import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
 
-        // Secrets injected by GitHub Actions
+        // Secrets from GitHub Actions
         const savedKey = "___GEMINI_API_KEY___"; 
         const SB_URL = "___SUPABASE_URL___"; 
         const SB_KEY = "___SUPABASE_KEY___";
+
         const supabase = createClient(SB_URL, SB_KEY);
-        const userId = "Kruthik"; 
+        const userId = "Kruthik";
 
-        // --- 1. VOICE RECOGNITION ---
-        const voiceBtn = document.getElementById('voiceBtn');
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (SpeechRecognition) {
-            const recognition = new SpeechRecognition();
-            voiceBtn.onclick = () => { recognition.start(); voiceBtn.innerText = "Listening..."; };
-            recognition.onresult = (event) => {
-                const text = event.results[0][0].transcript;
-                document.getElementById('aiInput').value = text;
-                voiceBtn.innerText = "🎤 Voice";
-            };
-        }
-
-        // --- 2. AI & SCHEDULE LOGIC ---
+        // 1. ASK AI FUNCTION
         window.askAI = async () => {
             const input = document.getElementById('aiInput').value;
-            const chat = document.getElementById('chatOutput');
-            if (!input) return;
+            const output = document.getElementById('chatOutput');
+            if (!input) return alert("Type something first!");
 
-            chat.innerText = "Consulting the architect...";
-            const genAI = new GoogleGenerativeAI(savedKey);
-            const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+            try {
+                output.innerText = "Thinking...";
+                const genAI = new GoogleGenerativeAI(savedKey);
+                const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-            const prompt = `User: ${userId}. Task: ${input}. 
-            Role: Expert Tutor. If user asks for a schedule or tasks, format them clearly. 
-            Always end with: 
-            TASKS: [task1, task2] 
-            SCHEDULE: [Time|Subject|Activity]`;
+                const result = await model.generateContent(`User: ${userId}. Context: Grade 12 student. Task: ${input}. Suggest 2 tasks at end as TASKS: [a, b]`);
+                const response = await result.response.text();
+                output.innerText = response;
 
-            const result = await model.generateContent(prompt);
-            const response = result.response.text();
-            chat.innerText = response;
-
-            // Sync Tasks to Supabase if AI suggests them
-            const taskMatch = response.match(/TASKS: \[(.*?)\]/);
-            if (taskMatch) {
-                const tasks = taskMatch[1].split(',');
-                for (let t of tasks) await supabase.from('tasks').insert([{ user_id: userId, task: t.trim() }]);
-                loadTasks();
+                if (response.includes("TASKS:")) {
+                    const cleanTasks = response.split("TASKS:")[1].replace(/[\[\]]/g, "").split(",");
+                    for (let t of cleanTasks) {
+                        await supabase.from('tasks').insert([{ user_id: userId, task: t.trim() }]);
+                    }
+                    window.loadTasks();
+                }
+            } catch (e) {
+                output.innerText = "Error: " + e.message;
             }
         };
 
-        // --- 3. DATA LOADING ---
-        async function loadTasks() {
+        // 2. TODO FUNCTIONS
+        window.loadTasks = async () => {
             const { data } = await supabase.from('tasks').select('*').eq('user_id', userId).order('created_at', { ascending: false });
-            document.getElementById('todoList').innerHTML = data.map(t => `<div class="list-item">${t.task} <span onclick="deleteTask(${t.id})">✕</span></div>`).join('');
-        }
+            const list = document.getElementById('todoList');
+            if (data && data.length > 0) {
+                list.innerHTML = data.map(t => `<div class="list-item">${t.task} <span onclick="deleteTask(${t.id})">✕</span></div>`).join('');
+            } else {
+                list.innerHTML = "No active tasks.";
+            }
+        };
 
         window.addTask = async () => {
-            const val = document.getElementById('newTask').value;
-            if (val) {
-                await supabase.from('tasks').insert([{ user_id: userId, task: val }]);
-                document.getElementById('newTask').value = '';
-                loadTasks();
-            }
+            const taskVal = document.getElementById('newTask').value;
+            if (!taskVal) return;
+            await supabase.from('tasks').insert([{ user_id: userId, task: taskVal }]);
+            document.getElementById('newTask').value = "";
+            window.loadTasks();
         };
 
-        // --- 4. TIMER LOGIC ---
-        let timerSeconds = 1500;
-        let timerActive = false;
-        let interval;
-        window.toggleTimer = () => {
-            if (timerActive) {
-                clearInterval(interval);
-                document.getElementById('timerBtn').innerText = "Start";
-            } else {
-                interval = setInterval(() => {
-                    timerSeconds--;
-                    let mins = Math.floor(timerSeconds / 60);
-                    let secs = timerSeconds % 60;
-                    document.getElementById('timer').innerText = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
-                    if (timerSeconds <= 0) clearInterval(interval);
-                }, 1000);
-                document.getElementById('timerBtn').innerText = "Pause";
-            }
-            timerActive = !timerActive;
+        window.deleteTask = async (id) => {
+            await supabase.from('tasks').delete().eq('id', id);
+            window.loadTasks();
         };
 
-        loadTasks();
+        // 3. VOICE FUNCTION
+        window.startVoice = () => {
+            const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+            recognition.lang = 'en-US';
+            recognition.start();
+            document.getElementById('voiceBtn').innerText = "Listening...";
+            
+            recognition.onresult = (event) => {
+                document.getElementById('aiInput').value = event.results[0][0].transcript;
+                document.getElementById('voiceBtn').innerText = "🎤 Voice Input";
+            };
+            recognition.onerror = () => {
+                document.getElementById('voiceBtn').innerText = "🎤 Try Again";
+            };
+        };
+
+        // Boot up
+        window.loadTasks();
     </script>
 </body>
 </html>
